@@ -10,6 +10,10 @@ This package addresses a practical problem: when an industrial assembly reaches 
 
 The repository is named `step-parser`; the executable is still named **`step2gltf`**.
 
+![Actual preview of the converted piggy.step sample](samples/step_preview.png)
+
+Actual viewer rendering of the included `samples/piggy.step` sample after conversion to GLB. This sample contains a single part.
+
 ## Why this package exists
 
 Industrial STEP files describe CAD geometry and product structure. A browser needs triangle meshes. Converting between them requires file reading, geometry transfer, meshing, and export. A successful conversion does not necessarily mean the conversion was efficient or its output is suitable for the web.
