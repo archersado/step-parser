@@ -129,6 +129,7 @@ New-Item -ItemType Directory -Force .local-build/models | Out-Null
 
 | 参数 | 默认值 | 用途 |
 | --- | --- | --- |
+| `--encoding` | `GBK` | STEP 名称源编码；UTF-8 文件使用 `--encoding=UTF-8`，GLB 始终输出 Unicode 名称 |
 | `--preview` | 关闭 | 启用设备级预览合并、深层减面与 Draco 压缩 |
 | `--linear` / `--angular` | `0.1` / `0.5` | 控制浅层零件或普通导出的网格精度 |
 | `--deep-linear` / `--deep-angular` | `1.0` / `0.8` | 控制深层设备的初始网格精度 |

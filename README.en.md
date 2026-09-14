@@ -127,6 +127,7 @@ The `.glb` extension packages JSON and geometry buffers into one file. A `.gltf`
 
 | Option | Default | Purpose |
 | --- | --- | --- |
+| `--encoding` | `GBK` | STEP source name encoding; use `--encoding=UTF-8` for UTF-8 input. GLB names remain Unicode. |
 | `--preview` | Off | Enable device-level preview merging, deep simplification, and Draco compression |
 | `--linear` / `--angular` | `0.1` / `0.5` | Mesh precision for shallow parts or ordinary export |
 | `--deep-linear` / `--deep-angular` | `1.0` / `0.8` | Initial mesh precision for deep devices |

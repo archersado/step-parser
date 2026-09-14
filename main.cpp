@@ -7,6 +7,7 @@
 #include <TDocStd_Document.hxx>
 // STEP Read methods
 #include <STEPCAFControl_Reader.hxx>
+#include <DESTEP_Parameters.hxx>
 // Meshing
 #include <TopoDS_Shape.hxx>
 #include <BRepMesh_IncrementalMesh.hxx>
@@ -32,6 +33,7 @@ static Standard_Real g_theAngDeflection = DefaultAngDeflection;
 /// @{
 static int g_verbose_level = 0;
 static bool g_preview = false;
+static Resource_FormatType g_encoding = Resource_FormatType_GBK;
 static bool g_deepOptionSet = false;
 static double g_deepLinear = 1.0;
 static double g_deepAngular = 0.8;
@@ -97,7 +99,10 @@ static int step2gltf(char *in, char *out)
     {
         // Loading STEP file
         STEPCAFControl_Reader stepReader;
-        if (IFSelect_RetDone != stepReader.ReadFile((Standard_CString)in)) {
+        DESTEP_Parameters parameters;
+        parameters.InitFromStatic();
+        parameters.ReadCodePage = g_encoding;
+        if (IFSelect_RetDone != stepReader.ReadFile((Standard_CString)in, parameters)) {
             std::cerr << "Error: Failed to read STEP file \"" << in << "\" !" << std::endl;
             doc->Close();
             return 1;
@@ -191,6 +196,7 @@ static void show_usage(const char* app)
     std::cerr << "    --deep-angular=FLOAT Deep geometry angle in radians (default: 0.8)" << std::endl;
     std::cerr << "    --deep-ratio=FLOAT  Deep triangle target fraction (default: 0.15, 1 disables reduction)" << std::endl;
     std::cerr << "    --deep-error=FLOAT  Relative mesh error limit (default: 0.001)" << std::endl;
+    std::cerr << "    --encoding=GBK|UTF-8 STEP name encoding (default: GBK)" << std::endl;
     std::cerr << "    -v                  Verbose output" << std::endl;
     std::cerr << "    -h, --help          Display help" << std::endl;
     std::cerr << std::endl;
@@ -232,6 +238,16 @@ static Standard_Integer parse_command_line(int argc, char *argv[])
                 g_verbose_level = 1;
         } else if ( ( q = strchr( p, '=' ) ) != NULL ) {
             *q++ = '\0';
+            if (strcmp(p, "--encoding") == 0) {
+                if (strcasecmp(q, "GBK") == 0) g_encoding = Resource_FormatType_GBK;
+                else if (strcasecmp(q, "UTF-8") == 0 || strcasecmp(q, "UTF8") == 0)
+                    g_encoding = Resource_FormatType_UTF8;
+                else {
+                    std::cerr << "Error: --encoding must be GBK or UTF-8" << std::endl;
+                    return 1;
+                }
+                continue;
+            }
             char* end;
             double value = strtod(q, &end);
             if (end == q || *end || !std::isfinite(value) || value <= 0) {
