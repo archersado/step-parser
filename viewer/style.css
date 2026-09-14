@@ -8,3 +8,7 @@ main{display:grid;grid-template-columns:246px minmax(0,1fr) 250px;height:calc(10
 
 /* Grid children must shrink so a large assembly tree scrolls inside the sidebar. */
 main>aside{min-height:0}#tree{min-height:0}
+
+/* Match the reference 3DModel viewport while keeping controls readable. */
+#viewport .eyebrow,#viewport #status,.view-bottom{color:#e1e7ee}#viewport #status.error{color:#ffd0d0}
+.view-heading{top:76px}

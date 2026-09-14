@@ -3,32 +3,38 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { createExplosion, applyExplosion } from './model.js';
+import { createExplosion, applyExplosion, highlightObject } from './model.js';
 
 const $ = (id) => document.getElementById(id);
 const viewport = $('viewport');
 const scene = new THREE.Scene();
-scene.background = new THREE.Color('#f3f6fa');
-const camera = new THREE.PerspectiveCamera(35, 1, 0.01, 1000);
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+scene.background = new THREE.Color(0x5d6d7e);
+const camera = new THREE.PerspectiveCamera(30, 1, 0.01, 1000);
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.8;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
 viewport.prepend(renderer.domElement);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.autoRotateSpeed = 1.2;
-const pmrem = new THREE.PMREMGenerator(renderer);
-const room = new RoomEnvironment();
-scene.environment = pmrem.fromScene(room).texture;
-room.dispose();
-pmrem.dispose();
-scene.add(new THREE.HemisphereLight(0xffffff, 0x8794a7, 2));
-const grid = new THREE.GridHelper(10, 20, 0xd4dce8, 0xe3e9f1);
-scene.add(grid);
-const highlight = new THREE.Box3Helper(new THREE.Box3(), 0x397bff);
-highlight.visible = false;
-scene.add(highlight);
+// Lighting from engine-checker-fe/src/components/3DModel/index.tsx.
+scene.add(new THREE.AmbientLight(0x707070, 2.5));
+for (const [intensity, position] of [[2, [0, 20, 10]], [0.8, [-15, 10, 15]], [0.4, [0, -10, 5]]]) {
+  const light = new THREE.DirectionalLight(0xffffff, intensity);
+  light.position.set(...position);
+  scene.add(light);
+}
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshStandardMaterial({
+  color: 0x566573, metalness: 0.1, roughness: 0.8, transparent: true, opacity: 0.7,
+}));
+ground.rotation.x = -Math.PI / 2;
+scene.add(ground);
+const selectionMaterial = new THREE.MeshStandardMaterial({
+  color: 0xffff00, metalness: 0.9, roughness: 0.1, emissive: 0x001122, emissiveIntensity: 0.2,
+});
+let restoreMaterials = () => {}, cameraAnimation = null, initialCamera;
 let model, selected, loading = false, entries = [], parts = [];
 let radius = 1;
 let wireframe = false;
@@ -41,13 +47,15 @@ function status(text, error = false) {
 }
 
 function select(object) {
+  restoreMaterials();
   selected = object;
+  restoreMaterials = highlightObject(object, selectionMaterial);
   $('selection').hidden = !object;
   $('selected-name').textContent = object ? rowMap.get(object)?.name ?? object.name : '';
   for (const [node, entry] of rowMap) entry.row.classList.toggle('active', node === object);
 }
 
-function fit(preserveDirection = false, target = model) {
+function fit(preserveDirection = false, target = model, smooth = false) {
   if (!model) return;
   const box = new THREE.Box3().setFromObject(target);
   const center = box.getCenter(new THREE.Vector3());
@@ -56,14 +64,22 @@ function fit(preserveDirection = false, target = model) {
   const halfFov = Math.atan(Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * Math.min(camera.aspect, 1));
   const distance = viewRadius / Math.sin(halfFov) * 1.2;
   const direction = preserveDirection ? camera.position.clone().sub(controls.target) : new THREE.Vector3(1, 0.65, 1);
-  controls.target.copy(center);
-  camera.position.copy(center).add(direction.normalize().multiplyScalar(distance));
+  const position = center.clone().add(direction.normalize().multiplyScalar(distance));
+  moveCamera(position, center, smooth);
   camera.near = Math.max(viewRadius / 1000, 0.000001);
   camera.far = Math.max(distance * 20, viewRadius * 100);
   camera.updateProjectionMatrix();
   controls.minDistance = viewRadius * 0.02;
   controls.maxDistance = camera.far / 2;
   controls.update();
+}
+
+function moveCamera(position, target, smooth = true) {
+  cameraAnimation = null;
+  if (smooth && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    cameraAnimation = { from: camera.position.clone(), targetFrom: controls.target.clone(),
+      position, target, start: performance.now() };
+  } else { camera.position.copy(position); controls.target.copy(target); }
 }
 
 function dispose(root) {
@@ -96,8 +112,8 @@ function show(gltf, filename, bytes, started) {
   scene.add(model);
   const center = box.getCenter(new THREE.Vector3());
   radius = Math.max(box.getBoundingSphere(new THREE.Sphere()).radius, 0.001);
-  grid.position.set(center.x, box.min.y - radius * 0.015, center.z);
-  grid.scale.setScalar(radius * 0.5);
+  ground.position.set(center.x, box.min.y - radius * 0.015, center.z);
+  ground.scale.setScalar(radius * 3);
   entries = [];
   parts = [];
   rowMap.clear();
@@ -132,7 +148,8 @@ function show(gltf, filename, bytes, started) {
       parts.push(node);
     }
   });
-  parts = createExplosion(parts, center, radius);
+  const baseUnitDistance = 10 ** Math.floor(Math.log10(box.getSize(new THREE.Vector3()).length() || 1));
+  parts = createExplosion(parts, center, baseUnitDistance);
   $('filename').textContent = filename;
   $('size').textContent = `${(bytes / 1e6).toFixed(2)} MB`;
   $('parts').textContent = parts.length.toLocaleString();
@@ -146,16 +163,17 @@ function show(gltf, filename, bytes, started) {
   $('explode-toggle').textContent = '一键爆裂';
   $('explode-toggle').setAttribute('aria-pressed', 'false');
   $('explode-toggle').disabled = $('explode').disabled = parts.length < 2;
-  $('explode-hint').textContent = parts.length < 2 ? '当前模型只有一个设备单元，无需爆裂。' : '仅展开根装配的直属设备，内部零件整体移动；收起恢复装配位置。';
+  $('explode-hint').textContent = parts.length < 2 ? '当前模型只有一个设备单元，无需爆裂。' : '沿 X 轴分批展开直属设备，中心设备固定；内部零件整体移动。';
   fit();
+  initialCamera = { position: camera.position.clone(), target: controls.target.clone() };
   status('已加载 · 可旋转、缩放和选择');
   document.body.dataset.loaded = 'true';
 }
 
-async function load(files, modelUrl = '../.local-build/piggy.glb') {
+async function load(files, modelUrl = '../.local-build/models/assembly-web.glb') {
   if (loading) return;
   loading = true;
-  $('sample').disabled = $('open').disabled = true;
+  $('assembly').disabled = $('sample').disabled = $('open').disabled = true;
   document.body.dataset.loaded = 'false';
   status('正在加载模型…');
   const urls = [];
@@ -165,7 +183,7 @@ async function load(files, modelUrl = '../.local-build/piggy.glb') {
   try {
     const manager = new THREE.LoadingManager();
     const loader = new GLTFLoader(manager).setDRACOLoader(draco).setMeshoptDecoder(MeshoptDecoder);
-    let data, filename, bytes;
+    let data, filename, bytes, resourcePath = '';
     if (files) {
       const models = files.filter((file) => /\.(glb|gltf)$/i.test(file.name));
       if (models.length !== 1) throw new Error('请选择一个 GLB 或 glTF 模型，以及它需要的资源文件');
@@ -189,10 +207,26 @@ async function load(files, modelUrl = '../.local-build/piggy.glb') {
       filename = decodeURIComponent(url.pathname.split('/').pop());
       const response = await fetch(url);
       if (!response.ok) throw new Error('找不到 GLB，请先运行转换命令');
-      data = await response.arrayBuffer();
+      resourcePath = new URL('.', url).href;
+      const total = Number(response.headers.get('content-length'));
+      if (response.body && total > 0) {
+        const reader = response.body.getReader(), chunks = [];
+        let received = 0;
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value); received += value.length;
+          status(`正在下载模型… ${Math.min(100, Math.round(received / total * 100))}%`);
+        }
+        const merged = new Uint8Array(received);
+        let offset = 0;
+        for (const chunk of chunks) { merged.set(chunk, offset); offset += chunk.length; }
+        data = merged.buffer;
+      } else data = await response.arrayBuffer();
       bytes = data.byteLength;
     }
-    const gltf = await loader.parseAsync(data, '');
+    status('正在解码并准备模型…');
+    const gltf = await loader.parseAsync(data, resourcePath);
     show(gltf, filename, bytes, started);
   } catch (error) {
     console.error(error);
@@ -201,13 +235,15 @@ async function load(files, modelUrl = '../.local-build/piggy.glb') {
     draco.dispose();
     urls.forEach((url) => URL.revokeObjectURL(url));
     loading = false;
-    $('sample').disabled = $('open').disabled = false;
+    $('assembly').disabled = $('sample').disabled = $('open').disabled = false;
   }
 }
 
 $('open').onclick = () => $('files').click();
 $('files').onchange = () => { if ($('files').files.length) load([...$('files').files]); $('files').value = ''; };
-$('sample').onclick = () => load();
+$('sample').onclick = () => load(null, '../.local-build/piggy.glb');
+$('assembly').onclick = () => load();
+$('reset-camera').onclick = () => { if (initialCamera) moveCamera(initialCamera.position, initialCamera.target); };
 $('fit').onclick = () => fit();
 $('clear').onclick = () => select(null);
 $('focus').onclick = () => { if (selected) fit(false, selected); };
@@ -218,9 +254,13 @@ $('hide').onclick = () => {
   select(null);
 };
 $('wire').onclick = () => {
+  const object = selected;
+  select(null);
   wireframe = !wireframe;
+  selectionMaterial.wireframe = wireframe;
   $('wire').setAttribute('aria-pressed', wireframe);
   model?.traverse((node) => { if (node.isMesh) for (const material of [].concat(node.material)) material.wireframe = wireframe; });
+  select(object);
 };
 $('rotate').onclick = () => {
   controls.autoRotate = !controls.autoRotate;
@@ -233,12 +273,14 @@ function setExplosion(factor) {
   $('explode-value').textContent = `${Math.round(factor * 100)}%`;
   $('explode-toggle').textContent = factor > 0 ? '收起零件' : '一键爆裂';
   $('explode-toggle').setAttribute('aria-pressed', factor > 0);
-  fit(true);
+  fit(true, model, true);
 }
 $('explode-toggle').onclick = () => {
   const to = (animation?.to ?? explosion) > 0 ? 0 : 1;
+  if (animation) { applyExplosion(parts, explosion); animation = null; }
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) { animation = null; setExplosion(to); }
-  else animation = { from: explosion, to, start: performance.now() };
+  else animation = { from: explosion, to, start: performance.now(),
+    duration: 1500 + (to > 0 ? Math.max(0, ...parts.map((part) => part.delay)) : 0) };
 };
 $('explode').oninput = () => {
   animation = null;
@@ -275,14 +317,27 @@ new ResizeObserver(() => {
 }).observe(viewport);
 renderer.setAnimationLoop(() => {
   if (animation) {
-    const progress = Math.min((performance.now() - animation.start) / 450, 1);
-    const eased = progress * progress * (3 - 2 * progress);
-    setExplosion(THREE.MathUtils.lerp(animation.from, animation.to, eased));
-    if (progress === 1) animation = null;
+    const elapsed = performance.now() - animation.start;
+    const progress = Math.min(elapsed / animation.duration, 1);
+    applyExplosion(parts, animation.to, elapsed, animation.from);
+    explosion = THREE.MathUtils.lerp(animation.from, animation.to, progress);
+    $('explode').value = Math.round(explosion * 100);
+    $('explode-value').textContent = `${Math.round(explosion * 100)}%`;
+    if (progress === 1) {
+      const to = animation.to;
+      animation = null;
+      setExplosion(to);
+      if (to === 0 && initialCamera) moveCamera(initialCamera.position, initialCamera.target);
+    }
+  }
+  if (cameraAnimation) {
+    const t = Math.min((performance.now() - cameraAnimation.start) / 800, 1);
+    const eased = t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2;
+    camera.position.lerpVectors(cameraAnimation.from, cameraAnimation.position, eased);
+    controls.target.lerpVectors(cameraAnimation.targetFrom, cameraAnimation.target, eased);
+    if (t === 1) cameraAnimation = null;
   }
   controls.update();
-  highlight.visible = !!selected;
-  if (selected) highlight.box.setFromObject(selected);
   renderer.render(scene, camera);
 });
 load(null, new URLSearchParams(location.search).get('model') || undefined);

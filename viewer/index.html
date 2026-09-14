@@ -11,7 +11,7 @@
 <body>
   <header>
     <div class="brand"><span class="logo">◇</span><strong>STEP / glTF</strong><span class="badge">模型预览</span></div>
-    <div class="actions"><button id="sample">加载样例</button><button id="open" class="primary">打开模型 <span>↗</span></button></div>
+    <div class="actions"><button id="assembly">加载总装</button><button id="sample">加载样例</button><button id="open" class="primary">打开模型 <span>↗</span></button></div>
     <input id="files" type="file" multiple hidden accept=".glb,.gltf,.bin,.png,.jpg,.jpeg,.webp,.ktx2">
   </header>
   <main>
@@ -25,6 +25,7 @@
       <div class="view-heading"><span class="eyebrow">3D VIEWPORT</span><span id="status" role="status">正在准备渲染器…</span></div>
       <div class="view-tools">
         <button id="fit" title="让模型完整显示">适应视图</button>
+        <button id="reset-camera">还原镜头</button>
         <button id="wire" aria-pressed="false">三角网格</button>
         <button id="rotate" aria-pressed="false">自动旋转</button>
       </div>

@@ -1,4 +1,4 @@
-# step2gltf
+# step-parser / step2gltf
 
 CLI tool to convert ISO 10303 STEP (AP203/AP214) files to glTF 2.0 using OpenCascade
 
@@ -10,101 +10,22 @@ You need OpenCascade 7.9.3 with RapidJSON, meshoptimizer 0.25, and Draco for pre
 
 ## Compiling
 
-### Prepare on macOS
+See [跨平台编译与使用指南（中文）](docs/build-and-usage.zh-CN.md) for macOS,
+Linux, Windows native MSVC and WSL instructions, pinned dependencies, runtime
+library setup, CLI options and browser preview. macOS Apple Silicon is verified;
+Linux and Windows instructions have not yet been tested on those platforms.
 
-Install Xcode Command Line Tools (`xcode-select --install`) if needed, then run:
+On macOS:
 
 ```sh
 bash scripts/setup-macos.sh
+make check
+./step2gltf --preview -v samples/piggy.step .local-build/piggy.glb
 ```
 
-This downloads CMake 3.31.8, OCCT 7.9.3, Draco 1.5.7, meshoptimizer 0.25 and the pinned RapidJSON source, builds
-the STEP/glTF toolkits and their dependencies, and compiles `step2gltf` with
-Apple Clang (C++17). Everything is stored under `.local-build/`; no Homebrew
-or system-wide installation is required. The first build takes several minutes.
-Use `JOBS=4 bash scripts/setup-macos.sh` to reduce build concurrency.
-This setup enables RapidJSON and native Draco compression for glTF export.
-It also applies `scripts/occt-draco.patch` to fix OCCT 7.9.3's missing Draco
-point count; `make check` verifies compressed export and decoding.
-
-For subsequent code changes and a sample conversion:
-
-```sh
-make release
-./step2gltf -v samples/piggy.step .local-build/piggy.glb
-```
-
-The Makefile finds the local OCCT installation and sets its runtime library
-path. Custom installations can use `OPENCASCADEINC`, `OPENCASCADELIB`,
-and `MESHOPTROOT` (the meshoptimizer prefix containing `include/` and `lib/`).
-
-### Prepare on Debian/Ubuntu
-
-Using system packages (Ubuntu 22.04+ ships OpenCascade 7.5+):
-```
-sudo apt-get install libocct-data-exchange-dev libocct-draw-dev rapidjson-dev
-```
-
-Or install build dependencies for compiling OpenCascade from source:
-```
-sudo apt-get install ca-certificates \
-    libcurl4 libuv1 cmake \
-    libfreetype6-dev \
-    tcl-dev tk-dev \
-    libxmu-dev libxi-dev
-```
-
-### Compiling RapidJSON from source:
-
-To compile from source:
-
-```
-git clone https://github.com/Tencent/rapidjson.git
-cd rapidjson
-git checkout 8f4c021fa2f1e001d2376095928fc0532adf2ae6
-mkdir build
-cd build
-cmake ..
-sudo make install
-```
-
-
-### Compiling OpenCascade from source:
-
-The current converter targets OpenCascade 7.9.3. To enable `--preview`, build
-Draco first, apply `scripts/occt-draco.patch`, and configure OCCT with
-`-DUSE_DRACO=ON -D3RDPARTY_DRACO_DIR=/path/to/draco`.
-
-To compile from source:
-
-```
-git clone https://github.com/Open-Cascade-SAS/OCCT.git
-cd OCCT
-git checkout V7_9_3
-mkdir build
-cd build
-cmake .. -DUSE_RAPIDJSON:BOOL=ON
-sudo make install
-```
-
-To compile **static** from source:
-```
-git clone https://github.com/Open-Cascade-SAS/OCCT.git
-cd OCCT
-git checkout V7_9_3
-mkdir build
-cd build
-cmake .. -DUSE_RAPIDJSON:BOOL=ON -DBUILD_LIBRARY_TYPE:String=Static
-sudo make install
-```
-
-
-### Compiling step2gltf
-
-To compile from source on OSX:
-```
-make
-```
+For subsequent edits, run `make release`. The executable remains `step2gltf`
+(`step2gltf.exe` on native Windows), although the repository is named `step-parser`.
+The converter itself uses Make on macOS/Linux; the root has no CMake project.
 
 ## Running
 
@@ -207,6 +128,10 @@ The explosion animation measured p95 17.4 ms and maximum 33.3 ms per frame.
 
 ### Measured model results
 
+The industrial input models and benchmark artifacts below were measured in the
+original workspace and are not included in this migrated repository. Use
+`samples/piggy.step` for a self-contained conversion check.
+
 Earlier native `--preview` results before the additional mesh reduction stage
 (equivalent to current `--deep-ratio=1`), tested with the files in `models/`:
 
@@ -229,7 +154,7 @@ npm ci --prefix viewer
 npm run dev --prefix viewer
 ```
 
-Open http://127.0.0.1:8086/viewer/ for the sample, or choose a local GLB/glTF
+Open http://127.0.0.1:8086/viewer/?model=../.local-build/piggy.glb for the sample, or choose a local GLB/glTF
 with **打开模型** (include its `.bin` and textures for glTF). Files stay in the
 browser. The preview uses Three.js 0.163.0 and OrbitControls, following the
 reference app's `src/components/3DModel` approach, with GLTFLoader replacing
@@ -269,3 +194,40 @@ The application should provide deflection parameters to compute a satisfactory m
 For an application working in dimensions known in advance it can be reasonable to use the absolute linear deflection for all models. This provides meshes according to metrics and precision used in the application (for example, it it is known that the model will be stored in meters, 0.004 m is enough for most tasks).
 
 Source: https://www.opencascade.com/doc/occt-7.1.0/overview/html/occt_user_guides__modeling_algos.html#occt_modalg_11_2
+
+## engine-checker-fe reference rendering
+
+The viewer ports the Three.js lighting, yellow selection material, download
+progress and X-axis staggered explosion behavior from
+`engine-checker-fe/src/components/3DModel/index.tsx` and `explosion.tsx`.
+It keeps the standalone viewer and its GLTFLoader/Draco setup; it does not
+import the React component or business APIs. World-space displacement handles
+rotated/scaled parents, and glTF device nodes remain the selection/explosion
+units regardless of how many compressed primitives each device contains.
+Mesh explosion uses the reference defaults (strength 1.2, duration 1.5 s,
+stagger 0.5 s and model-scale base distance), followed by an 0.8 s camera fit.
+
+The default model and **加载总装** button load
+`.local-build/models/assembly-web.glb`. Place a converted assembly there;
+the generated model is ignored by Git. **加载样例** loads
+`.local-build/piggy.glb`. Original GLB materials are preserved outside temporary
+selection highlighting. **聚焦选中** inspects a device; **还原镜头** restores
+the initial view; **显示全部 / 复位** restores visibility and assembly positions.
+
+For the current local comparison, `step-parser` is served on port 8088:
+
+```sh
+python3 -m http.server 8088 --bind 127.0.0.1 --directory .
+```
+
+- Viewer: `http://127.0.0.1:8088/viewer/`
+- Original React component: `http://127.0.0.1:8000/model-preview`
+
+The second page runs in the separate `engine-checker-fe` checkout. Its local
+`.umirc.local.ts` adds the preview route and proxies `/preview-models` to
+port 8088; start it with `PORT=8000 npm run dev` in that checkout.
+The component accepts a `modelUrl` for this preview; it does not require the
+business file API. This local Umi configuration is ignored by that repository.
+Both pages use the same 17.72 MB assembly GLB (28 devices, 2,111,647 triangles).
+Run `npm run check --prefix viewer` for axis movement, transformed parents,
+stagger completion, exact restoration and material restoration checks.
