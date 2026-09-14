@@ -1,0 +1,12 @@
+{
+  "name": "step2gltf-viewer",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "python3 -m http.server 8086 --bind 127.0.0.1 --directory ..",
+    "check": "node --check viewer.js && node --test viewer.test.js"
+  },
+  "dependencies": {
+    "three": "0.163.0"
+  }
+}

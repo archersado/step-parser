@@ -1,0 +1,10 @@
+--- a/src/RWGltf/RWGltf_CafWriter.cxx
++++ b/src/RWGltf/RWGltf_CafWriter.cxx
+@@ -204,6 +204,7 @@
+     Message_ProgressScope aScope(myRanges[theMeshIndex], NULL, 1);
+ 
+     draco::Mesh aMesh;
++    aMesh.set_num_points(static_cast<uint32_t>(aCurrentMesh->NodesVec.size()));
+     writeNodesToDracoMesh(aMesh, aCurrentMesh->NodesVec);
+ 
+     if (!aCurrentMesh->NormalsVec.empty())

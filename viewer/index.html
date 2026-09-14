@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>STEP / glTF · 模型预览</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css">
+  <script type="importmap">{"imports":{"three":"./node_modules/three/build/three.module.js","three/addons/":"./node_modules/three/examples/jsm/"}}</script>
+</head>
+<body>
+  <header>
+    <div class="brand"><span class="logo">◇</span><strong>STEP / glTF</strong><span class="badge">模型预览</span></div>
+    <div class="actions"><button id="sample">加载样例</button><button id="open" class="primary">打开模型 <span>↗</span></button></div>
+    <input id="files" type="file" multiple hidden accept=".glb,.gltf,.bin,.png,.jpg,.jpeg,.webp,.ktx2">
+  </header>
+  <main>
+    <aside>
+      <div class="sidebar-title"><span class="eyebrow">MODEL EXPLORER</span><h1>模型结构</h1><p id="filename">正在加载…</p></div>
+      <div class="tree-heading"><span>装配与设备</span><span id="part-count">—</span></div>
+      <div id="tree" aria-label="模型节点"></div>
+      <div class="sidebar-footer"><span class="status-dot"></span>本地预览 · 文件不上传</div>
+    </aside>
+    <section id="viewport" aria-label="三维模型视口">
+      <div class="view-heading"><span class="eyebrow">3D VIEWPORT</span><span id="status" role="status">正在准备渲染器…</span></div>
+      <div class="view-tools">
+        <button id="fit" title="让模型完整显示">适应视图</button>
+        <button id="wire" aria-pressed="false">三角网格</button>
+        <button id="rotate" aria-pressed="false">自动旋转</button>
+      </div>
+      <div id="selection" hidden><span id="selected-name"></span><button id="focus">聚焦选中</button><button id="hide">隐藏选中</button><button id="clear" aria-label="取消选择">×</button></div>
+      <div class="view-bottom"><span>拖动旋转 · 滚轮缩放 · 右键平移 · 单击选择</span><span>Y ↑</span></div>
+    </section>
+    <aside class="inspector">
+      <span class="eyebrow">MODEL OVERVIEW</span><h2>模型信息</h2>
+      <dl><div><dt>文件大小</dt><dd id="size">—</dd></div><div><dt>设备单元</dt><dd id="parts">—</dd></div><div><dt>三角形</dt><dd id="triangles">—</dd></div><div><dt>加载耗时</dt><dd id="elapsed">—</dd></div></dl>
+      <div class="divider"></div>
+      <div class="section-heading"><h2>爆裂视图</h2><output id="explode-value">0%</output></div>
+      <button id="explode-toggle" class="full" aria-pressed="false" disabled>一键爆裂</button>
+      <input id="explode" aria-label="拆解程度" type="range" min="0" max="100" value="0" disabled>
+      <p id="explode-hint" class="hint">加载装配模型后可查看零件分布。</p>
+      <button id="restore" class="full">显示全部 / 复位</button>
+      <div class="tip"><strong>检查转换效果</strong><p>开启三角网格可观察曲面密度。选择零件后可单独隐藏，检查内部结构。</p><p>GLB 可直接打开；glTF 请同时选择对应的 .bin 和纹理文件。</p></div>
+    </aside>
+  </main>
+  <script type="module" src="viewer.js"></script>
+</body>
+</html>
