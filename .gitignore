@@ -36,3 +36,5 @@ step2gltf
 # Project-local toolchain, dependencies, and conversion checks
 .local-build/
 viewer/node_modules/
+service/node_modules/
+service/dist/

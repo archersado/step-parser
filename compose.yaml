@@ -1,0 +1,23 @@
+services:
+  step2gltf:
+    image: step2gltf-service:latest
+    build:
+      context: .
+      args:
+        BUILD_JOBS: "4"
+        VERSION: local
+    ports:
+      - "3000:3000"
+    environment:
+      MAX_UPLOAD_BYTES: "4294967296"
+      MAX_CONCURRENT_CONVERSIONS: "1"
+      MAX_QUEUED_CONVERSIONS: "8"
+      CONVERSION_TIMEOUT_MS: "3600000"
+    tmpfs:
+      - /var/lib/step2gltf:rw,noexec,nosuid,size=8g,uid=1000,gid=1000,mode=0700
+    read_only: true
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL

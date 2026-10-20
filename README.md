@@ -90,6 +90,8 @@ flowchart LR
 
 **[跨平台编译与使用指南](docs/build-and-usage.zh-CN.md)**
 
+需要以 HTTP 服务部署时，可使用仓库根目录的多阶段 `Dockerfile`。镜像构建阶段会在 Linux 中从源码编译 meshoptimizer、Draco、OCCT 和当前 `step2gltf`，运行阶段提供同步的 `POST /step2gltf` 转换接口。Alibaba Cloud Linux、Ubuntu、容器参数和 API 示例见 **[转换服务容器部署](docs/container-deployment.zh-CN.md)**。
+
 目前 macOS Apple Silicon 已完成编译、回归测试和实际模型验证；其他平台的文档步骤仍待实机验证。核心依赖为 C++17、OCCT 7.9.3、meshoptimizer 0.25、Draco 1.5.7 和 RapidJSON。
 
 macOS 首次构建，在安装 Xcode Command Line Tools 后执行：

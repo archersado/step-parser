@@ -1,0 +1,12 @@
+.git
+.github
+.local-build
+*.o
+*.d
+step2gltf
+service/node_modules
+service/dist
+viewer/node_modules
+debian
+docs
+samples/step_preview.png
